@@ -1,3 +1,4 @@
+---
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -14,11 +15,13 @@
 # limitations under the License.
 
 name: Nightly version checks
-
 on:
   schedule:
     - cron: '0 1 * * 1-5'  # 01:00 AM UTC Monday - Friday
   workflow_dispatch: {}
+defaults:
+  run:
+    shell: nix develop --impure --command bash {0}
 jobs:
   redpanda-version:
     strategy:
@@ -26,27 +29,52 @@ jobs:
         chart:
           - redpanda
           - console
-# Operator changed it's versioning scheme, so that version checks wrongly open PRs
-#          - operator
+          # Operator changed it's versioning scheme, so that version checks wrongly open PRs
+          # - operator
       fail-fast: false
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      id-token: write
     steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.RP_AWS_CRED_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.RP_AWS_CRED_ACCOUNT_ID }}:role/${{ vars.RP_AWS_CRED_BASE_ROLE_NAME }}${{ github.event.repository.name }}
+      - uses: aws-actions/aws-secretsmanager-get-secrets@v2
+        with:
+          secret-ids: |
+            ,sdlc/prod/github/actions_bot_token
+          parse-json-secrets: true
+      - uses: cachix/install-nix-action@v30
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      # Cache the nix store.
+      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      # Try to checkout a branch with the same name as provided in the dispatch
       - uses: actions/checkout@v4
+        id: checkout
         with:
+          ref: main
           fetch-depth: 0
-      - run: |
-          git checkout main
-          git checkout -
-      - uses: actions/setup-go@v5
+          token: ${{ env.ACTIONS_BOT_TOKEN }}
+        continue-on-error: true
+      # If we couldn't checkout the provided branch, we will checkout the default branch
+      # instead. We assume that the branch does not yet exist, but we will create it,
+      # when we commit the updated dependencies.
+      - uses: actions/checkout@v4
+        if: ${{ steps.checkout.outcome != 'success' }}
         with:
-          go-version: '>=1.21.3'
+          token: ${{ env.ACTIONS_BOT_TOKEN }}
+          fetch-depth: 0
       - run: go install github.com/joejulian/docker-tag-list@latest
       - name: Check chart version for ${{ matrix.chart }}
         id: chartversion
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .github/bump_chart_versions.sh ${{ matrix.chart }}
-      - name: debug -- delete me
+      - run: task ci:lint
+      - name: Debug -- delete me
         run: |
           echo TITLE
           echo steps.chartversion.outputs.TITLE
@@ -54,9 +82,9 @@ jobs:
           echo "${INPUT_BODY}"
           echo CHANGED
           echo steps.chartversion.outputs.CHANGED
-      - name: create PR
+      - name: Create PR
         if: steps.chartversion.outputs.CHANGED == 'true'
-        uses: peter-evans/create-pull-request@b1ddad2c994a25fbc81a28b3ec0e368bb2021c50  # v6.0.0
+        uses: peter-evans/create-pull-request@67ccf781d68cd99b580ae25a5c18a1cc84ffff1f  # v7.0.6
         with:
           title: ${{ steps.chartversion.outputs.TITLE }}
           commit-message: ${{ steps.chartversion.outputs.TITLE }}

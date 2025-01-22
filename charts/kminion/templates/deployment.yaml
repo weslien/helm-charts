@@ -37,8 +37,9 @@ spec:
       {{- include "kminion.selectorLabels" . | nindent 6}}
   template:
     metadata:
-      {{- with .Values.podAnnotations}}
       annotations:
+        {{- include "kminion.restartAnnotation" . | nindent 8}}
+      {{- with .Values.podAnnotations}}
         {{- toYaml . | nindent 8}}
       {{- end}}
       labels:
@@ -133,5 +134,9 @@ spec:
       {{- end}}
       {{- with .Values.tolerations}}
       tolerations:
+        {{- toYaml . | nindent 8}}
+      {{- end}}
+      {{- with .Values.hostAliases}}
+      hostAliases:
         {{- toYaml . | nindent 8}}
       {{- end}}
