@@ -162,10 +162,11 @@ container:
   # -- Pod resource management.
   resources:
     request:
-      cpu: 1
+      # Numeric values here are also acceptable.
+      cpu: "1"
       memory: 2350Mi
     limits:
-      cpu: 1
+      cpu: "1"
       memory: 2350Mi
     # -- Java maximum heap size must not be greater than `container.resources.limits.memory`.
     javaMaxHeapSize: 2G
@@ -181,8 +182,6 @@ deployment:
   strategy:
     type: RollingUpdate
   schedulerName: ""
-  updateStrategy:
-    type: RollingUpdate
   budget:
     maxUnavailable: 1
   # -- Additional annotations to apply to the Pods of this Deployment.
@@ -207,6 +206,13 @@ deployment:
   extraEnv: []
   # - name: RACK_ID
   #   value: "1"
+
+  # -- Configure extra environment variables from Secrets and ConfigMaps.
+  extraEnvFrom: []
+  # - secretRef:
+  #     name: my-secret
+  # - configMapRef:
+  #     name: my-configmap
 
   # -- The maximum time in seconds for a deployment to make progress before it is
   # considered to be failed. The deployment controller will continue to process
@@ -286,6 +292,8 @@ storage:
 serviceAccount:
   # -- Specifies whether a ServiceAccount should be created.
   create: false
+  # -- Specifies whether a service account should automount API-Credentials
+  automountServiceAccountToken: false
   # -- Annotations to add to the ServiceAccount.
   annotations: {}
   # -- The name of the ServiceAccount to use.

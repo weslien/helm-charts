@@ -93,7 +93,7 @@
           "type": "object"
         },
         "className": {
-          "type": "string"
+          "type": ["string", "null"]
         },
         "enabled": {
           "type": "boolean"
@@ -277,6 +277,9 @@
         }
       }
     },
+    "automountServiceAccountToken": {
+      "type": "boolean"
+    },
     "serviceAccount": {
       "type": "object",
       "properties": {
@@ -284,6 +287,9 @@
           "type": "object"
         },
         "create": {
+          "type": "boolean"
+        },
+        "automountServiceAccountToken": {
           "type": "boolean"
         },
         "name": {

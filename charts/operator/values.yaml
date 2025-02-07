@@ -27,6 +27,8 @@ image:
 
 # -- Configuration for the `kube-rbac-proxy`, a component that provides an HTTP proxy to perform authorization checks.
 kubeRbacProxy:
+  # -- Sets log level for kube rbac proxy
+  logLevel: 10
   # -- Sets settings for pulling the `kube-rbac-proxy` image.
   image:
     # -- Sets the repository in which the `kube-rbac-proxy` image is available.
@@ -35,15 +37,6 @@ kubeRbacProxy:
     tag: v0.14.0
     # -- Sets the `pullPolicy` for `kube-rbac-proxy` image
     pullPolicy: IfNotPresent
-
-# -- Configuration for the Redpanda configurator, a component for managing Redpanda configuration.
-configurator:
-  # -- Sets the repository in which the Redpanda configurator image is available.
-  repository: docker.redpanda.com/redpandadata/configurator
-  # -- Sets the Redpanda configurator image tag. Uncomment and set a value to use a specific version.
-  # tag:
-  # -- Sets the `pullPolicy` for the Redpanda configurator image.
-  pullPolicy: IfNotPresent
 
 # -- Configuration for the Kubernetes Controller Manager used by Redpanda Operator.
 # The Controller Manager is a component of the Kubernetes control plane that runs controller processes. These controllers are background threads that handle the orchestration and operational logic of Kubernetes, ensuring the desired state of the cluster matches the observed state.
@@ -74,7 +67,7 @@ config:
 imagePullSecrets: []
 
 # -- Log level
-# Valid values (from least to most verbose) are: `fatal`, `panic`, `error`, `info` and `debug`.
+# Valid values (from least to most verbose) are: `warn`, `info`, `debug`, and `trace`.
 logLevel: "info"
 
 # -- Role-based Access Control (RBAC) configuration for the Redpanda Operator.
@@ -96,10 +89,12 @@ webhook:
 serviceAccount:
   # -- Specifies whether a service account should be created.
   create: true
+  # -- Specifies whether a service account should automount API-Credentials. The token is used in sidecars.controllers
+  automountServiceAccountToken: false
   # -- The name of the service account to use.
   # If not set and `serviceAccount.create` is `true`,
   # a name is generated using the `redpanda-operator.fullname` template.
-  name:
+  # name:
 
 # -- Sets resources requests/limits for Redpanda Operator Pods.
 # By default requests and limits are not set to increase the chances that the charts run on environments with few
@@ -126,6 +121,11 @@ tolerations: []
 # see the [Kubernetes documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 affinity: {}
 
+# -- Sets deployment strategy.
+# For details,
+# see the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy).
+# strategy: ""
+
 # Sets additional annotations for Pods.
 podAnnotations: {}
 # Adds additional labels to Pods.
@@ -135,12 +135,13 @@ podLabels: {}
 # Additional flags include:
 #
 # - `--additional-controllers`: Additional controllers to deploy. Valid values are nodeWatcher or decommission. For more information about the Nodewatcher controller, see [Install the Nodewatcher controller](https://docs.redpanda.com/current/manage/kubernetes/k-scale-redpanda/#node-pvc). For more information about the Decommission controller, see [Use the Decommission controller](https://docs.redpanda.com/current/manage/kubernetes/k-decommission-brokers/#Automated).
-additionalCmdFlags: []
+additionalCmdFlags:
+- --configurator-tag=v2.3.6-24.3.3
 # - --additional-controllers="<controller-name"
 
 # -- Additional labels to add to all Kubernetes objects.
 # For example, `my.k8s.service: redpanda-operator`.
-commonLabels:
+commonLabels: {}
 
 # -- Configuration for monitoring.
 monitoring:
@@ -151,6 +152,41 @@ monitoring:
 
 # Sets the name of the Secret in which to store the self-signed TLS certificate for the Webhooks when `webhook.enabled` is `true`.
 webhookSecretName: webhook-server-cert
+
+# -- Sets almost all fields of operator Deployment PodTemplate
+# For details,
+# see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-template-v1/#PodTemplateSpec).
+podTemplate:
+  metadata: {}
+    # -- Additional labels to apply to the Pods of the StatefulSet.
+    # labels: {}
+    # -- Additional annotations to apply to the Pods of the StatefulSet.
+    # annotations: {}
+  # -- A subset of Kubernetes' PodSpec type that will be merged into the
+  # final PodSpec. See [Merge Semantics](#merging-semantics) for details.
+  spec:
+    securityContext:
+      runAsUser: 65532
+    containers:
+      - name: manager
+        resources: {}
+        # securityContext: {}
+        # env: []
+
+# -- Sets operator container security context
+# For details,
+# see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1).
+# operatorSecurityContext:
+
+# -- Sets operator container liveness probe various durations
+# For details,
+# see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#Probe).
+# livenessProbe:
+
+# -- Sets operator container readiness probe various durations
+# For details,
+# see the [Kubernetes documentation](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#Probe).
+# readinessProbe:
 
 # -- Sets the scope of the Redpanda Operator.
 # Valid values are `Cluster` or `Namespace`.

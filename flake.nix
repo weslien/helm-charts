@@ -1,38 +1,63 @@
 {
   inputs = {
-    nixpkgs.url = "nixpkgs";
-    nixpkgs-unstable.url = "nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "nixpkgs/nixos-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
   outputs =
-    { self
+    inputs@{ self
     , nixpkgs
-    , nixpkgs-unstable
-    , flake-utils
-    ,
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = import nixpkgs { inherit system; };
-        pkgs-unstable = import nixpkgs-unstable { inherit system; };
-      in
-      {
-        formatter = pkgs.nixpkgs-fmt;
+    , flake-parts
+    , ...
+    }: flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "aarch64-darwin" "x86_64-linux" ];
 
-        devShells.default = pkgs.mkShell {
-          buildInputs = [
-            pkgs.chart-testing
-            pkgs.go
-            pkgs.dyff
-            pkgs.go-task
-            pkgs.helm-docs
-            pkgs.kind
-            pkgs.kubectl
-            pkgs.kubernetes-helm
-          ];
+      perSystem = { self', system, ... }:
+        let
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [
+              (final: prev: {
+                chart-releaser = pkgs.callPackage ./.github/chart-releaser.nix { };
+                chart-testing = pkgs.callPackage ./.github/chart-testing.nix { };
+                docker-tag-list = pkgs.callPackage ./.github/docker-tag-list.nix { };
+                helm-3-10-3 = pkgs.callPackage ./.github/helm.nix { };
+                setup-envtest = pkgs.callPackage ./.github/setup-envtest.nix { };
+                kubernetes-helm = prev.wrapHelm prev.kubernetes-helm {
+                  plugins = [ prev.kubernetes-helmPlugins.helm-unittest ];
+                };
+              })
+            ];
+          };
+        in
+        {
+          formatter = pkgs.nixpkgs-fmt;
+
+          devShells.default = pkgs.mkShell {
+            buildInputs = [
+              pkgs.actionlint # Github Workflow definition linter https://github.com/rhysd/actionlint
+              pkgs.chart-releaser
+              pkgs.chart-testing
+              pkgs.docker-tag-list # Utility to list out docker tags
+              pkgs.dyff
+              pkgs.gh # Github CLI
+              pkgs.git
+              pkgs.go
+              pkgs.go-task
+              pkgs.gofumpt
+              pkgs.helm-3-10-3
+              pkgs.helm-docs
+              pkgs.jq # CLI JSON swiss army knife
+              pkgs.kind
+              pkgs.kube-linter
+              pkgs.kubectl
+              pkgs.kubernetes-helm
+              pkgs.kustomize
+              pkgs.rsync
+              pkgs.setup-envtest
+              pkgs.yq # jq but for YAML
+            ];
+          };
         };
-      }
-    );
+    };
 }

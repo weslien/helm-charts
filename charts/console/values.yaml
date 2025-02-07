@@ -42,9 +42,16 @@ nameOverride: ""
 # -- Override `console.fullname` template.
 fullnameOverride: ""
 
+# -- Automount API credentials for the Service Account into the pod. Console does not communicate with
+# Kubernetes API.
+automountServiceAccountToken: false
+
 serviceAccount:
   # -- Specifies whether a service account should be created.
   create: true
+  # -- Specifies whether a service account should automount API-Credentials. Console does not
+  # communicate with Kubernetes API. The ServiceAccount could be used for workload identity.
+  automountServiceAccountToken: false
   # -- Annotations to add to the service account.
   annotations: {}
   # -- The name of the service account to use.
@@ -85,7 +92,7 @@ service:
 
 ingress:
   enabled: false
-  className: ""
+  className:
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
@@ -124,7 +131,7 @@ tolerations: []
 
 affinity: {}
 
-topologySpreadConstraints: {}
+topologySpreadConstraints: []
 
 # -- PriorityClassName given to Pods.
 # For details,
@@ -249,7 +256,7 @@ enterprise:
 # For details,
 # see the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes).
 livenessProbe:
-  initialDelaySeconds: 0
+  # initialDelaySeconds: 0
   periodSeconds: 10
   timeoutSeconds: 1
   successThreshold: 1
